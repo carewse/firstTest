@@ -146,4 +146,9 @@ public class SplitList<T> {
 
 
     }
+    
+    public interface Mapable<T, N> extends Comparable<N> {
+
+    public T getKey();
+}
 }
