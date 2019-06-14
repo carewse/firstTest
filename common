@@ -1,0 +1,149 @@
+package pers.carlos.common;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Created by fujun.cai on 2019/6/14.
+ */
+public class SplitList<T> {
+    private List<T> createList;
+    private List<T> modifyList;
+    private List<T> removeList;
+    private static SplitList emptySplit = new SplitList(new ArrayList(0), new ArrayList(0), new ArrayList(0));
+
+    private SplitList(List<T> createList, List<T> modifyList, List<T> removeList) {
+        this.createList = createList;
+        this.modifyList = modifyList;
+        this.removeList = removeList;
+    }
+
+    public List<T> getCreateList() {
+        return createList;
+    }
+
+    public List<T> getModifyList() {
+        return modifyList;
+    }
+
+    public List<T> getRemoveList() {
+        return removeList;
+    }
+
+    public static <E, T extends Mapable<E, T>, L extends Mapable<E, T>> SplitList<T> splitMapableList(List<T> newList, List<L> originList) {
+        SplitList<T> valdate = valdate(newList, originList);
+        if (valdate != null) {
+            return valdate;
+        }
+        List<T> createList = new LinkedList(), modifyList = new LinkedList(), removeList;
+        Map<E, L> originListMap = originList.stream().collect(Collectors.toMap(L::getKey, (o) -> o));
+        for (T t : newList) {
+            L l = originListMap.get(t.getKey());
+            if (l != null) {
+                originListMap.remove(t.getKey());
+                if (l.compareTo(t) != 0) {
+                    modifyList.add(t);
+                }
+            } else {
+                createList.add(t);
+            }
+        }
+        removeList = originListMap.values() == null ? Collections.emptyList() : new ArrayList(originListMap.values());
+        return new SplitList(createList, modifyList, removeList);
+    }
+
+    public static <T extends Number> SplitList<T> splitNumList(List<T> newList, List<T> originList) {
+        SplitList<T> valdate = valdate(newList, originList);
+        if (valdate != null) {
+            return valdate;
+        }
+        List createList = new LinkedList(), modifyList = new LinkedList(), removeList;
+        Set<T> originSet = originList.stream().collect(Collectors.toSet());
+        for (T t : newList) {
+            if (originSet.contains(t)) {
+                originSet.remove(t);
+            } else {
+                createList.add(t);
+            }
+        }
+        removeList = originSet == null ? Collections.emptyList() : new ArrayList(originSet);
+        return new SplitList(createList, modifyList, removeList);
+    }
+
+    private static <T, L> SplitList valdate(List<T> newList, List<L> originList) {
+        if ((newList == null || newList.isEmpty()) && (originList == null || newList.isEmpty())) {
+            return emptySplit;
+        }
+        if (originList == null || originList.isEmpty()) {
+            return new SplitList(newList, Collections.emptyList(), Collections.emptyList());
+        }
+        if (newList == null || newList.isEmpty()) {
+            return new SplitList(Collections.emptyList(), Collections.emptyList(), originList);
+        }
+        return null;
+    }
+
+
+
+    public static void main(String[] args) {
+        ZoneId zone = ZoneId.systemDefault();
+        List<User> arrayList = new ArrayList(5);
+        arrayList.add(new User(1, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+        arrayList.add(new User(2, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+        arrayList.add(new User(3, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+        arrayList.add(new User(6, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+        List<User> arrayList2 = new ArrayList(4);
+        arrayList2.add(new User(2, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+        arrayList2.add(new User(3, Date.from(LocalDateTime.of(2019, 06, 11, 12, 01, 00).atZone(zone).toInstant())));
+        arrayList2.add(new User(4, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+        arrayList2.add(new User(5, Date.from(LocalDateTime.of(2019, 06, 11, 12, 00, 00).atZone(zone).toInstant())));
+
+        SplitList<User> split = SplitList.splitMapableList(arrayList, arrayList2);
+//        ArrayList<Integer> arrayList = Lists.newArrayList(1, 2, 3, 6);
+//        ArrayList<Integer> arrayList2 = Lists.newArrayList(2, 3, 4, 5);
+//        SplitList<Integer> split = SplitList.splitNumList(arrayList, arrayList2);
+        List<User> createList = split.getCreateList();
+        List<User> updateList = split.getModifyList();
+        List<User> removeList = split.getRemoveList();
+        System.out.println("------");
+        createList.forEach(System.out::print);
+        System.out.println("------");
+        updateList.forEach(System.out::print);
+        System.out.println("------");
+        removeList.forEach(System.out::print);
+        System.out.println("------");
+    }
+
+
+    public static class User implements Mapable<Integer, User> {
+        private int id;
+        private Date versionDate;
+
+        public User(int id, Date versionDate) {
+            this.id = id;
+            this.versionDate = versionDate;
+        }
+
+        @Override
+        public Integer getKey() {
+            return this.id;
+        }
+
+        @Override
+        public int compareTo(User user) {
+            return this.versionDate.compareTo(user.versionDate);
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "id=" + id +
+                    ", versionDate=" + versionDate +
+                    '}';
+        }
+
+
+    }
+}
